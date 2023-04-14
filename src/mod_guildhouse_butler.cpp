@@ -3,7 +3,7 @@
 #include "Chat.h"
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
-#include "Configuration/Config.h"
+#include "Config.h"
 #include "Creature.h"
 #include "Guild.h"
 #include "GuildMgr.h"

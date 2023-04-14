@@ -1,6 +1,6 @@
 #include "ScriptMgr.h"
 #include "Player.h"
-#include "Configuration/Config.h"
+#include "Config.h"
 #include "Creature.h"
 #include "Guild.h"
 #include "SpellAuraEffects.h"
@@ -35,7 +35,7 @@ public:
 
     void OnCreate(Guild *, Player *leader, const std::string &)
     {
-        ChatHandler(leader->GetSession()).PSendSysMessage("You now own a guild. You can purchase a Guild House!");
+        ChatHandler(leader->GetSession()).PSendSysMessage("Ahora eres dueño de una hermandad. ¡Puedes comprar una Casa de Hermandad!");
     }
 
     uint32 GetGuildPhase(Guild *guild)
@@ -145,7 +145,7 @@ public:
     {
         if (!player->GetGuild())
         {
-            ChatHandler(player->GetSession()).PSendSysMessage("You are not a member of a guild.");
+            ChatHandler(player->GetSession()).PSendSysMessage("No eres miembro de una hermandad.");
             CloseGossipMenuFor(player);
             return false;
         }
@@ -155,14 +155,14 @@ public:
         // Only show Teleport option if guild owns a guild house
         if (has_gh)
         {
-            AddGossipItemFor(player, GOSSIP_ICON_TABARD, "Teleport to Guild House", GOSSIP_SENDER_MAIN, 1);
+            AddGossipItemFor(player, GOSSIP_ICON_TABARD, "Teletransportarse a la Casa de Hermandad.", GOSSIP_SENDER_MAIN, 1);
 
             // Only show "Sell" option if they have a guild house & have permission to sell it
             Guild *guild = sGuildMgr->GetGuildById(player->GetGuildId());
             Guild::Member const *memberMe = guild->GetMember(player->GetGUID());
             if (memberMe->IsRankNotLower(sConfigMgr->GetOption<int32>("GuildHouseSellRank", 0)))
             {
-                AddGossipItemFor(player, GOSSIP_ICON_TABARD, "Sell Guild House!", GOSSIP_SENDER_MAIN, 3, "Are you sure you want to sell your Guild House?", 0, false);
+                AddGossipItemFor(player, GOSSIP_ICON_TABARD, "¡Vender Casa de Hermandad!", GOSSIP_SENDER_MAIN, 3, "¿Estás seguro de que quieres vender tu Casa de Hermandad?", 0, false);
             }
         }
         else
@@ -170,11 +170,11 @@ public:
             // Only leader of the guild can buy guild house & only if they don't already have a guild house
             if (player->GetGuild()->GetLeaderGUID() == player->GetGUID())
             {
-                AddGossipItemFor(player, GOSSIP_ICON_TABARD, "Buy Guild House!", GOSSIP_SENDER_MAIN, 2);
+                AddGossipItemFor(player, GOSSIP_ICON_TABARD, "¡Comprar Casa de Hermandad!", GOSSIP_SENDER_MAIN, 2);
             }
         }
 
-        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Close", GOSSIP_SENDER_MAIN, 5);
+        AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Cerrar", GOSSIP_SENDER_MAIN, 5);
         SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, creature->GetGUID());
         return true;
     }
@@ -207,7 +207,7 @@ public:
             QueryResult has_gh = CharacterDatabase.Query("SELECT id, `guild` FROM `guild_house` WHERE guild = {}", player->GetGuildId());
             if (!has_gh)
             {
-                ChatHandler(player->GetSession()).PSendSysMessage("Your guild does not own a Guild House!");
+                ChatHandler(player->GetSession()).PSendSysMessage("¡Tu hermandad no posee una Casa de Hermandad!");
                 CloseGossipMenuFor(player);
                 return false;
             }
@@ -215,15 +215,15 @@ public:
             // calculate total gold returned: 1) cost of guild house and cost of each purchase made
             if (RemoveGuildHouse(player))
             {
-                ChatHandler(player->GetSession()).PSendSysMessage("You have successfully sold your Guild House.");
-                player->GetGuild()->BroadcastToGuild(player->GetSession(), false, "We just sold our Guild House.", LANG_UNIVERSAL);
+                ChatHandler(player->GetSession()).PSendSysMessage("Has vendido exitosamente tu Casa de Hermandad.");
+                player->GetGuild()->BroadcastToGuild(player->GetSession(), false, "Acabamos de vender nuestra Casa de Hermandad.", LANG_UNIVERSAL);
                 player->ModifyMoney(+(sConfigMgr->GetOption<int32>("CostGuildHouse", 10000000) / 2));
                 LOG_INFO("modules", "GUILDHOUSE: Successfully returned money and sold Guild House");
                 CloseGossipMenuFor(player);
             }
             else
             {
-                ChatHandler(player->GetSession()).PSendSysMessage("There was an error selling your Guild House.");
+                ChatHandler(player->GetSession()).PSendSysMessage("Se produjo un error al vender tu Casa de Hermandad.");
                 CloseGossipMenuFor(player);
             }
             break;
@@ -241,9 +241,9 @@ public:
             CharacterDatabase.Query("INSERT INTO `guild_house` (guild, phase, map, positionX, positionY, positionZ, orientation) VALUES ({}, {}, {}, {}, {}, {}, {})", player->GetGuildId(), GetGuildPhase(player), map, posX, posY, posZ, ori);
             player->ModifyMoney(-(sConfigMgr->GetOption<int32>("CostGuildHouse", 10000000)));
             // Msg to purchaser and Msg Guild as purchaser
-            ChatHandler(player->GetSession()).PSendSysMessage("You have successfully purchased a Guild House");
-            player->GetGuild()->BroadcastToGuild(player->GetSession(), false, "We now have a Guild House!", LANG_UNIVERSAL);
-            player->GetGuild()->BroadcastToGuild(player->GetSession(), false, "In chat, type `.guildhouse teleport` or `.gh tele` to meet me there!", LANG_UNIVERSAL);
+            ChatHandler(player->GetSession()).PSendSysMessage("Has comprado exitosamente una Casa de Hermandad.");
+            player->GetGuild()->BroadcastToGuild(player->GetSession(), false, "¡Ahora tenemos una Casa de Hermandad!", LANG_UNIVERSAL);
+            player->GetGuild()->BroadcastToGuild(player->GetSession(), false, "En el chat, escribe .guildhouse teleport o .gh tele para encontrarnos allí.", LANG_UNIVERSAL);
             LOG_INFO("modules", "GUILDHOUSE: GuildId: '{}' has purchased a guildhouse", player->GetGuildId());
 
             // Spawn a portal and the guild house butler automatically as part of purchase.
@@ -454,13 +454,13 @@ public:
 
         if (result)
         {
-            ChatHandler(player->GetSession()).PSendSysMessage("Your guild already has a Guild House.");
+            ChatHandler(player->GetSession()).PSendSysMessage("Tu hermandad ya tiene una Casa de Hermandad.");
             CloseGossipMenuFor(player);
             return false;
         }
 
         ClearGossipMenuFor(player);
-        AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "GM Island", GOSSIP_SENDER_MAIN, 100, "Buy Guild House on GM Island?", sConfigMgr->GetOption<int32>("CostGuildHouse", 10000000), false);
+        AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "GM Island", GOSSIP_SENDER_MAIN, 100, "Comprar Casa de Hermandad en la Isla de los GM", sConfigMgr->GetOption<int32>("CostGuildHouse", 10000000), false);
         // Removing this tease for now, as right now the phasing code is specific go GM Island, so it's not a simple thing to add new areas yet.
         // AddGossipItemFor(player, GOSSIP_ICON_CHAT, " ----- More to Come ----", GOSSIP_SENDER_MAIN, 4);
         SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, creature->GetGUID());
@@ -478,14 +478,14 @@ public:
             if (player->GetGuild()->GetLeaderGUID() == player->GetGUID())
             {
                 // Only leader of the guild can buy / sell guild house
-                AddGossipItemFor(player, GOSSIP_ICON_TABARD, "Buy Guild House!", GOSSIP_SENDER_MAIN, 2);
-                AddGossipItemFor(player, GOSSIP_ICON_TABARD, "Sell Guild House!", GOSSIP_SENDER_MAIN, 3, "Are you sure you want to sell your Guild House?", 0, false);
+                AddGossipItemFor(player, GOSSIP_ICON_TABARD, "Comprar Casa de Hermandad", GOSSIP_SENDER_MAIN, 2);
+                AddGossipItemFor(player, GOSSIP_ICON_TABARD, "Vender Casa de Hermandad", GOSSIP_SENDER_MAIN, 3, "¿Estás seguro de que deseas vender tu Casa de Hermandad?", 0, false);
             }
 
-            AddGossipItemFor(player, GOSSIP_ICON_TABARD, "Teleport to Guild House", GOSSIP_SENDER_MAIN, 1);
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Close", GOSSIP_SENDER_MAIN, 5);
+            AddGossipItemFor(player, GOSSIP_ICON_TABARD, "Teletransportarse a la Casa de Hermandad", GOSSIP_SENDER_MAIN, 1);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Cerrar", GOSSIP_SENDER_MAIN, 5);
             SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, creature->GetGUID());
-            ChatHandler(player->GetSession()).PSendSysMessage("Your Guild does not own a Guild House");
+            ChatHandler(player->GetSession()).PSendSysMessage("Tu hermandad no posee una Casa de Hermandad");
             return;
         }
 
@@ -588,7 +588,7 @@ public:
 
             if (!result || !player->GetGuild())
             {
-                ChatHandler(player->GetSession()).PSendSysMessage("Your guild does not own a Guild House.");
+                ChatHandler(player->GetSession()).PSendSysMessage("Tu hermandad no posee una Casa de Hermandad");
                 teleportToDefault(player);
                 return;
             }
@@ -641,21 +641,21 @@ public:
         Map *map = player->GetMap();
         if (!player->GetGuild() || (player->GetGuild()->GetLeaderGUID() != player->GetGUID()))
         {
-            handler->SendSysMessage("You must be the Guild Master of a guild to use this command!");
+            handler->SendSysMessage("¡Debes ser el Maestro de Hermandad de una hermandad para usar este comando");
             handler->SetSentErrorMessage(true);
             return false;
         }
 
         if (player->GetAreaId() != 876)
         {
-            handler->SendSysMessage("You must be in your Guild House to use this command!");
+            handler->SendSysMessage("¡Debes estar en tu Casa de Hermandad para usar este comando!");
             handler->SetSentErrorMessage(true);
             return false;
         }
 
         if (player->FindNearestCreature(500031, VISIBLE_RANGE, true))
         {
-            handler->SendSysMessage("You already have the Guild House Butler!");
+            handler->SendSysMessage("¡Ya tienes al Mayordomo de la Casa de Hermandad!");
             handler->SetSentErrorMessage(true);
             return false;
         }
@@ -668,7 +668,7 @@ public:
         Creature *creature = new Creature();
         if (!creature->Create(map->GenerateLowGuid<HighGuid::Unit>(), map, GetGuildPhase(player), 500031, 0, posX, posY, posZ, ori))
         {
-            handler->SendSysMessage("You already have the Guild House Butler!");
+            handler->SendSysMessage("¡Ya tienes al Mayordomo de la Casa de Hermandad!");
             handler->SetSentErrorMessage(true);
             delete creature;
             return false;
@@ -681,7 +681,7 @@ public:
         creature = new Creature();
         if (!creature->LoadCreatureFromDB(lowguid, player->GetMap()))
         {
-            handler->SendSysMessage("Something went wrong when adding the Butler.");
+            handler->SendSysMessage("Algo salió mal al añadir al Mayordomo.");
             handler->SetSentErrorMessage(true);
             delete creature;
             return false;
@@ -700,7 +700,7 @@ public:
 
         if (player->IsInCombat())
         {
-            handler->SendSysMessage("You can't use this command while in combat!");
+            handler->SendSysMessage("No puedes usar este comando mientras estás en combate.");
             handler->SetSentErrorMessage(true);
             return false;
         }
@@ -710,7 +710,7 @@ public:
 
         if (!result)
         {
-            handler->SendSysMessage("Your guild does not own a Guild House!");
+            handler->SendSysMessage("Tu hermandad no posee una Casa de Hermandad.");
             handler->SetSentErrorMessage(true);
             return false;
         }
