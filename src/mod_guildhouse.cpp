@@ -12,8 +12,9 @@
 #include "GossipDef.h"
 #include "DataMap.h"
 #include "GameObject.h"
+#include "GameObjectAI.h"
 #include "Transport.h"
-#include "Maps/MapMgr.h"
+#include "MapMgr.h"
 
 class GuildData : public DataMap::Base
 {
@@ -76,6 +77,11 @@ public:
             {
                 Field *fields = CreatureResult->Fetch();
                 uint32 lowguid = fields[0].Get<int32>();
+				
+				// Solucion Temp, borrar DB, pero No en World hasta reinicio
+				WorldDatabase.Query("DELETE FROM `creature` WHERE `phaseMask` = '{}' AND `guid` = '{}'", guildPhase, lowguid);
+				
+				/*
                 if (CreatureData const *cr_data = sObjectMgr->GetCreatureData(lowguid))
                 {
                     if (Creature *creature = map->GetCreature(ObjectGuid::Create<HighGuid::Unit>(cr_data->id1, lowguid)))
@@ -84,7 +90,7 @@ public:
                         creature->DeleteFromDB();
                         creature->AddObjectToRemoveList();
                     }
-                }
+                }*/
             } while (CreatureResult->NextRow());
         }
 
@@ -95,6 +101,11 @@ public:
             {
                 Field *fields = GameobjResult->Fetch();
                 uint32 lowguid = fields[0].Get<int32>();
+				
+				// Solucion Temp, borrar DB, pero No en World hasta reinicio
+				WorldDatabase.Query("DELETE FROM `gameobject` WHERE `phaseMask` = '{}' AND `guid` = '{}'", guildPhase, lowguid);
+				
+				/*
                 if (GameObjectData const *go_data = sObjectMgr->GetGameObjectData(lowguid))
                 {
                     if (GameObject *gobject = map->GetGameObject(ObjectGuid::Create<HighGuid::GameObject>(go_data->id, lowguid)))
@@ -105,7 +116,7 @@ public:
                         gobject->CleanupsBeforeDelete();
                         // delete gobject;
                     }
-                }
+                }*/
 
             } while (GameobjResult->NextRow());
         }
@@ -219,6 +230,7 @@ public:
                 player->GetGuild()->BroadcastToGuild(player->GetSession(), false, "Acabamos de vender nuestra Casa de Hermandad.", LANG_UNIVERSAL);
                 player->ModifyMoney(+(sConfigMgr->GetOption<int32>("CostGuildHouse", 10000000) / 2));
                 LOG_INFO("modules", "GUILDHOUSE: Successfully returned money and sold Guild House");
+                 
                 CloseGossipMenuFor(player);
             }
             else
@@ -247,8 +259,9 @@ public:
             LOG_INFO("modules", "GUILDHOUSE: GuildId: '{}' has purchased a guildhouse", player->GetGuildId());
 
             // Spawn a portal and the guild house butler automatically as part of purchase.
-            SpawnStarterPortal(player);
+            //SpawnStarterPortal(player);
             SpawnButlerNPC(player);
+            SpawnTeleportNPC(player);
             CloseGossipMenuFor(player);
         }
 
@@ -279,7 +292,11 @@ public:
             {
                 Field *fields = CreatureResult->Fetch();
                 uint32 lowguid = fields[0].Get<uint32>();
-                if (CreatureData const *cr_data = sObjectMgr->GetCreatureData(lowguid))
+				 
+				 // Solucion Temp, borrar DB, pero No en World hasta reinicio
+				WorldDatabase.Query("DELETE FROM `creature` WHERE `phaseMask` = '{}' AND `guid` = '{}'", guildPhase, lowguid);
+				
+                /*if (CreatureData const *cr_data = sObjectMgr->GetCreatureData(lowguid))
                 {
                     if (Creature *creature = map->GetCreature(ObjectGuid::Create<HighGuid::Unit>(cr_data->id1, lowguid)))
                     {
@@ -287,7 +304,7 @@ public:
                         creature->DeleteFromDB();
                         creature->AddObjectToRemoveList();
                     }
-                }
+                }*/
             } while (CreatureResult->NextRow());
         }
 
@@ -298,7 +315,11 @@ public:
             {
                 Field *fields = GameobjResult->Fetch();
                 uint32 lowguid = fields[0].Get<uint32>();
-                if (GameObjectData const *go_data = sObjectMgr->GetGameObjectData(lowguid))
+				
+				// Solucion Temp, borrar DB, pero No en World hasta reinicio
+				WorldDatabase.Query("DELETE FROM `gameobject` WHERE `phaseMask` = '{}' AND `guid` = '{}'", guildPhase, lowguid);
+										
+               /* if (GameObjectData const *go_data = sObjectMgr->GetGameObjectData(lowguid))
                 {
                     if (GameObject *gobject = map->GetGameObject(ObjectGuid::Create<HighGuid::GameObject>(go_data->id, lowguid)))
                     {
@@ -309,7 +330,7 @@ public:
                         // delete gobject;
                     }
                 }
-
+*/
             } while (GameobjResult->NextRow());
         }
 
@@ -448,6 +469,39 @@ public:
         return;
     }
 
+    // Mostrar el NPC de teleport al comprar la GuildHouse
+    void SpawnTeleportNPC(Player* player)
+    {
+        uint32 entry = 601036;
+        float posX = 16253.271484f;
+        float posY = 16304.999023f;
+        float posZ = 43.592087f;
+        float ori = 3.101092f;
+
+        Map* map = sMapMgr->FindMap(1, 0);
+        Creature* creature = new Creature();
+
+        if (!creature->Create(map->GenerateLowGuid<HighGuid::Unit>(), map, player->GetPhaseMaskForSpawn(), entry, 0, posX, posY, posZ, ori))
+        {
+            delete creature;
+            return;
+        }
+        creature->SaveToDB(map->GetId(), (1 << map->GetSpawnMode()), GetGuildPhase(player));
+        uint32 lowguid = creature->GetSpawnId();
+
+        creature->CleanupsBeforeDelete();
+        delete creature;
+        creature = new Creature();
+        if (!creature->LoadCreatureFromDB(lowguid, map))
+        {
+            delete creature;
+            return;
+        }
+
+        sObjectMgr->AddCreatureToGrid(lowguid, sObjectMgr->GetCreatureData(lowguid));
+        return;
+    }
+
     bool BuyGuildHouse(Guild *guild, Player *player, Creature *creature)
     {
         QueryResult result = CharacterDatabase.Query("SELECT `id`, `guild` FROM guild_house WHERE `guild` = {}", guild->GetId());
@@ -482,7 +536,7 @@ public:
                 AddGossipItemFor(player, GOSSIP_ICON_TABARD, "Vender Casa de Hermandad", GOSSIP_SENDER_MAIN, 3, "¿Estás seguro de que deseas vender tu Casa de Hermandad?", 0, false);
             }
 
-            AddGossipItemFor(player, GOSSIP_ICON_TABARD, "Teletransportarse a la Casa de Hermandad", GOSSIP_SENDER_MAIN, 1);
+            AddGossipItemFor(player, GOSSIP_ICON_TABARD, "Ir a la Casa de la Hermandad", GOSSIP_SENDER_MAIN, 1);
             AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Cerrar", GOSSIP_SENDER_MAIN, 5);
             SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, creature->GetGUID());
             ChatHandler(player->GetSession()).PSendSysMessage("Tu hermandad no posee una Casa de Hermandad");

@@ -16,6 +16,74 @@
 
 int cost, GuildHouseInnKeeper, GuildHouseBank, GuildHouseMailBox, GuildHouseAuctioneer, GuildHouseTrainer, GuildHouseVendor, GuildHouseObject, GuildHousePortal, GuildHouseSpirit, GuildHouseProf, GuildHouseBuyRank;
 
+uint32 pGuildId;
+
+struct Portal {
+    uint32 id;
+    std::string name;
+}
+portalsO[4] = {
+    { 500005, "Ciudad de Lunargenta" },
+    { 500006, "Cima de Trueno" },
+    { 500007, "Entrañas" },
+    { 500008, "Orgrimmar" }
+};
+
+struct PortalA {
+    uint32 id;
+    std::string name;
+}
+portalsA[4] = {
+    { 500001, "Darnassus" },
+    { 500002, "El Exodar" },
+    { 500003, "Forjaz" },
+    { 500004, "Ventormenta" }
+};
+
+struct PortalN {
+    uint32 id;
+    std::string name;
+}
+portalsN[2] = {
+    { 500009, "Shattrath" },
+    { 500010, "Dalaran" }
+};
+
+struct MenusS {
+    uint32 id;
+    std::string name;
+}
+MenuS[6] = {
+    { 500101, "Tabernero" },
+    { 500102, "Buzón" },
+    { 500103, "Maestro de Establos" },
+    { 500104, "Banco" },
+    { 500105, "Subastador" },
+    { 500106, "Cementerio" }
+};
+
+struct Cementerio {
+    uint32 id;
+    std::string name;
+}
+CementerioM[2] = {
+    { 500501, "Ángel de la Resurrección" },
+    { 500502, "Restos Olvidados" }
+};
+
+struct MenusC {
+    uint32 id;
+    std::string name;
+}
+MenuC[5] = {
+    { 500201, "Entrenadores de Clase" },
+    { 500202, "Vendedores" },
+    { 500203, "Portales" },
+    { 500204, "Profesiones Principales" },
+    { 500205, "Profesiones Secundarias" }
+};
+
+uint32 buy;
 class GuildHouseSpawner : public CreatureScript
 {
 
@@ -47,93 +115,295 @@ public:
             Guild::Member const *memberMe = guild->GetMember(player->GetGUID());
             if (!memberMe->IsRankNotLower(GuildHouseBuyRank))
             {
-                ChatHandler(player->GetSession()).PSendSysMessage("You are not authorized to make Guild House purchases.");
+                ChatHandler(player->GetSession()).PSendSysMessage("No estás autorizado para hacer compras de la Casa de la Hermandad.");
                 return false;
             }
         }
         else
         {
-            ChatHandler(player->GetSession()).PSendSysMessage("You are not in a guild!");
+            ChatHandler(player->GetSession()).PSendSysMessage("¡No perteneces a una hermandad!");
             return false;
         }
-
+        pGuildId = player->GetGuildId();
         ClearGossipMenuFor(player);
-        AddGossipItemFor(player, GOSSIP_ICON_TALK, "Spawn Innkeeper", GOSSIP_SENDER_MAIN, 500032, "Add an Innkeeper?", GuildHouseInnKeeper, false);
-        AddGossipItemFor(player, GOSSIP_ICON_TALK, "Spawn Mailbox", GOSSIP_SENDER_MAIN, 184137, "Spawn a Mailbox?", GuildHouseMailBox, false);
-        AddGossipItemFor(player, GOSSIP_ICON_TALK, "Spawn Stable Master", GOSSIP_SENDER_MAIN, 28690, "Spawn a Stable Master?", GuildHouseVendor, false);
-        AddGossipItemFor(player, GOSSIP_ICON_TALK, "Spawn Class Trainer", GOSSIP_SENDER_MAIN, 2);
-        AddGossipItemFor(player, GOSSIP_ICON_TALK, "Spawn Vendor", GOSSIP_SENDER_MAIN, 3);
-        AddGossipItemFor(player, GOSSIP_ICON_TALK, "Spawn City Portals / Objects", GOSSIP_SENDER_MAIN, 4);
-        AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "Spawn Bank", GOSSIP_SENDER_MAIN, 30605, "Spawn a Banker?", GuildHouseBank, false);
-        AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "Spawn Auctioneer", GOSSIP_SENDER_MAIN, 6, "Spawn an Auctioneer?", GuildHouseAuctioneer, false);
-        AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "Spawn Neutral Auctioneer", GOSSIP_SENDER_MAIN, 9858, "Spawn a Neutral Auctioneer?", GuildHouseAuctioneer, false);
-        AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Spawn Primary Profession Trainers", GOSSIP_SENDER_MAIN, 7);
-        AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Spawn Secondary Profession Trainers", GOSSIP_SENDER_MAIN, 8);
-        AddGossipItemFor(player, GOSSIP_ICON_TALK, "Spawn Sprirt Healer", GOSSIP_SENDER_MAIN, 6491, "Spawn a Spirit Healer?", GuildHouseSpirit, false);
+        bool portalFound[6] = { false, false, false, false, false, false };
+        
+
+        if (QueryResult t_query = CharacterDatabase.Query("SELECT `buy`, `guild` FROM `guild_house_buy` WHERE `buy` >= 500101 AND `buy` <= 500106 AND `guild` = {}", pGuildId))
+        {
+            do {
+                Field* t_fields = t_query->Fetch();
+                uint32 buy = t_fields[0].Get<uint32>();
+
+                if (buy >= 500101 && buy <= 500106) {
+                    for (int i = 0; i < 6; i++) {
+                        if (buy == MenuS[i].id) {
+                            portalFound[i] = true;
+                            break;
+                        }
+                    }
+                }
+            } while (t_query->NextRow());
+        }
+
+        for (int i = 0; i < 6; i++) {
+            if (!portalFound[i]) {
+                AddGossipItemFor(player, GOSSIP_ICON_TAXI, MenuS[i].name, GOSSIP_SENDER_MAIN, MenuS[i].id, "Invocar: " + MenuS[i].name, 1000000, false);
+            }
+        }
+        
+        // Portales TEAM_ALLIANCE 
+        if (player->GetTeamId() == TEAM_ALLIANCE)
+        {
+            // Verificar si el portal 500203 existe
+            if (CharacterDatabase.Query("SELECT 1 FROM `guild_house_buy` WHERE `buy` = 500203 AND `guild` = {}", pGuildId)) {}
+            else {
+
+                // Comprobar si se han comprado todos los portales
+                bool allBought = true;
+
+                // Comprobar si se han comprado todos los portales de portalsA
+                for (const auto& portal : portalsA) {
+                    if (!CharacterDatabase.Query("SELECT 1 FROM `guild_house_buy` WHERE `buy` = {} AND `guild` = {}", portal.id, pGuildId))
+                    {
+                        allBought = false;
+                        break;
+                    }
+                }
+
+                // Comprobar si se han comprado todos los portales de portalsN
+                for (const auto& portal : portalsN) {
+                    if (!CharacterDatabase.Query("SELECT 1 FROM `guild_house_buy` WHERE `buy` = {} AND `guild` = {}", portal.id, pGuildId))
+                    {
+                        allBought = false;
+                        break;
+                    }
+                }
+
+                // Mostrar el menú de portales si no se han comprado todos
+                if (!allBought) {
+                    AddGossipItemFor(player, GOSSIP_ICON_TALK, "Portales", GOSSIP_SENDER_MAIN, 4);
+                }
+                else {
+                    CharacterDatabase.Execute("INSERT INTO `guild_house_buy` VALUES ({},500203)", pGuildId);
+                }
+            }
+        }
+        else {
+            // Verificar si el portal 500203 existe
+            if (CharacterDatabase.Query("SELECT 1 FROM `guild_house_buy` WHERE `buy` = 500203 AND `guild` = {}", pGuildId)) {}
+            else {
+
+                // Comprobar si se han comprado todos los portales
+                bool allBought = true;
+
+                // Comprobar si se han comprado todos los portales de portalsO
+                for (const auto& portal : portalsO) {
+                    if (!CharacterDatabase.Query("SELECT 1 FROM `guild_house_buy` WHERE `buy` = {} AND `guild` = {}", portal.id, pGuildId))
+                    {
+                        allBought = false;
+                        break;
+                    }
+                }
+
+                // Comprobar si se han comprado todos los portales de portalsN
+                for (const auto& portal : portalsN) {
+                    if (!CharacterDatabase.Query("SELECT 1 FROM `guild_house_buy` WHERE `buy` = {} AND `guild` = {}", portal.id, pGuildId))
+                    {
+                        allBought = false;
+                        break;
+                    }
+                }
+
+                // Mostrar el menú de portales si no se han comprado todos
+                if (!allBought) {
+                    AddGossipItemFor(player, GOSSIP_ICON_TALK, "Portales", GOSSIP_SENDER_MAIN, 4);
+                }
+                else {
+                    CharacterDatabase.Execute("INSERT INTO `guild_house_buy` VALUES ({},500203)", pGuildId);
+                }
+            }
+
+        }
+
+        // Cementerio
+        // Verificar si el portal 500500 existe
+        if (CharacterDatabase.Query("SELECT 1 FROM `guild_house_buy` WHERE `buy` = 500500 AND `guild` = {}", pGuildId)) {}
+        else {
+
+            // Comprobar si se han comprado todos los Cementerios
+            bool allBought = true;
+
+            // Comprobar si se han comprado todos los cementerio de portalsA
+            for (const auto& cementerio : CementerioM) {
+                if (!CharacterDatabase.Query("SELECT 1 FROM `guild_house_buy` WHERE `buy` = {} AND `guild` = {}", cementerio.id, pGuildId))
+                {
+                    allBought = false;
+                    break;
+                }
+            }           
+
+            // Mostrar el menú de Cementerio si no se han comprado todos
+            if (!allBought) {
+                AddGossipItemFor(player, GOSSIP_ICON_TALK, "Cementerio", GOSSIP_SENDER_MAIN, 500500);
+            }
+            else {
+                CharacterDatabase.Execute("INSERT INTO `guild_house_buy` VALUES ({},500500)", pGuildId);
+            }
+        }
+
+        
+        /*AddGossipItemFor(player, GOSSIP_ICON_TALK, "Tabernero", GOSSIP_SENDER_MAIN, 500032, "¿Invocar un Tabernero?", GuildHouseInnKeeper, false);
+        AddGossipItemFor(player, GOSSIP_ICON_TALK, "Buzón", GOSSIP_SENDER_MAIN, 184137, "¿Invocar Buzón?", GuildHouseMailBox, false);
+        AddGossipItemFor(player, GOSSIP_ICON_TALK, "Maestro de Establos", GOSSIP_SENDER_MAIN, 28690, "¿Invocar Maestro de Establos?", GuildHouseVendor, false);        
+        AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "Banco", GOSSIP_SENDER_MAIN, 30605, "¿Invocar Banco?", GuildHouseBank, false);
+        AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "Subastador", GOSSIP_SENDER_MAIN, 6, "¿Invocar Subastador?", GuildHouseAuctioneer, false);
+        AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "Subastador Neutral", GOSSIP_SENDER_MAIN, 9858, "¿Invocar Subastador Neutral?", GuildHouseAuctioneer, false);
+        
+        AddGossipItemFor(player, GOSSIP_ICON_TALK, "Cementerio", GOSSIP_SENDER_MAIN, 6491, "¿Invocar Cementerio?", GuildHouseSpirit, false);*/
+        /*
+        AddGossipItemFor(player, GOSSIP_ICON_TALK, "Entrenadores de Clase", GOSSIP_SENDER_MAIN, 2);
+        AddGossipItemFor(player, GOSSIP_ICON_TALK, "Vendedores", GOSSIP_SENDER_MAIN, 3);
+        AddGossipItemFor(player, GOSSIP_ICON_TALK, "Portales", GOSSIP_SENDER_MAIN, 4);
+        AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Entrenadores de Profesiones Principales", GOSSIP_SENDER_MAIN, 7);
+        AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Entrenadores de Profesiones Secundarias", GOSSIP_SENDER_MAIN, 8);*/
+
         SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, creature->GetGUID());
         return true;
     }
 
     bool OnGossipSelect(Player *player, Creature *m_creature, uint32, uint32 action) override
     {
-
+        pGuildId = player->GetGuildId();
+        
         switch (action)
         {
         case 2: // Spawn Class Trainer
             ClearGossipMenuFor(player);
-            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Death Knight", GOSSIP_SENDER_MAIN, 29195, "Spawn Death Knight Trainer?", GuildHouseTrainer, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Druid", GOSSIP_SENDER_MAIN, 26324, "Spawn Druid Trainer?", GuildHouseTrainer, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Hunter", GOSSIP_SENDER_MAIN, 26325, "Spawn Hunter Trainer?", GuildHouseTrainer, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Mage", GOSSIP_SENDER_MAIN, 26326, "Spawn Mage Trainer?", GuildHouseTrainer, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Paladin", GOSSIP_SENDER_MAIN, 26327, "Spawn Paladin Trainer?", GuildHouseTrainer, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Priest", GOSSIP_SENDER_MAIN, 26328, "Spawn Priest Trainer?", GuildHouseTrainer, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Rogue", GOSSIP_SENDER_MAIN, 26329, "Spawn Rogue Trainer?", GuildHouseTrainer, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Shaman", GOSSIP_SENDER_MAIN, 26330, "Spawn Shaman Trainer?", GuildHouseTrainer, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Warlock", GOSSIP_SENDER_MAIN, 26331, "Spawn Warlock Trainer?", GuildHouseTrainer, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Warrior", GOSSIP_SENDER_MAIN, 26332, "Spawn Warrior Trainer?", GuildHouseTrainer, false);
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Go Back!", GOSSIP_SENDER_MAIN, 9);
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Caballero de la Muerte", GOSSIP_SENDER_MAIN, 29195, "¿Invocar un entredador de Caballero de la Muerte?", GuildHouseTrainer, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Druida", GOSSIP_SENDER_MAIN, 26324, "¿Invocar un entredador de Druida?", GuildHouseTrainer, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Cazador", GOSSIP_SENDER_MAIN, 26325, "¿Invocar un entredador de Cazador?", GuildHouseTrainer, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Mago", GOSSIP_SENDER_MAIN, 26326, "¿Invocar un entredador de Mago?", GuildHouseTrainer, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Paladín", GOSSIP_SENDER_MAIN, 26327, "¿Invocar un entredador de Paladín?", GuildHouseTrainer, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Sacerdote", GOSSIP_SENDER_MAIN, 26328, "¿Invocar un entredador de Sacerdote?", GuildHouseTrainer, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Pícaro", GOSSIP_SENDER_MAIN, 26329, "¿Invocar un entredador de Pícaro?", GuildHouseTrainer, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Chamán", GOSSIP_SENDER_MAIN, 26330, "¿Invocar un entredador de Chamán?", GuildHouseTrainer, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Brujo", GOSSIP_SENDER_MAIN, 26331, "¿Invocar un entredador de Brujo?", GuildHouseTrainer, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Guerrero", GOSSIP_SENDER_MAIN, 26332, "¿Invocar un entredador de Guerrero?", GuildHouseTrainer, false);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "¡Regresar!", GOSSIP_SENDER_MAIN, 9);
             SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, m_creature->GetGUID());
             break;
         case 3: // Vendors
             ClearGossipMenuFor(player);
-            AddGossipItemFor(player, GOSSIP_ICON_TALK, "Trade Supplies", GOSSIP_SENDER_MAIN, 28692, "Spawn Trade Supplies?", GuildHouseVendor, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TALK, "Tabard Vendor", GOSSIP_SENDER_MAIN, 28776, "Spawn Tabard Vendor?", GuildHouseVendor, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TALK, "Food & Drink Vendor", GOSSIP_SENDER_MAIN, 4255, "Spawn Food & Drink Vendor?", GuildHouseVendor, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TALK, "Reagent Vendor", GOSSIP_SENDER_MAIN, 29636, "Spawn Reagent Vendor?", GuildHouseVendor, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TALK, "Ammo & Repair Vendor", GOSSIP_SENDER_MAIN, 29493, "Spawn Ammo & Repair Vendor?", GuildHouseVendor, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TALK, "Poisons Vendor", GOSSIP_SENDER_MAIN, 2622, "Spawn Poisons Vendor?", GuildHouseVendor, false);
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Go Back!", GOSSIP_SENDER_MAIN, 9);
+            AddGossipItemFor(player, GOSSIP_ICON_TALK, "Suministros Comerciales", GOSSIP_SENDER_MAIN, 28692, "¿Invocar un Vendedor de Suministros Comerciales?", GuildHouseVendor, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TALK, "Tabardos", GOSSIP_SENDER_MAIN, 28776, "¿Invocar un Vendedor de Tabardos?", GuildHouseVendor, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TALK, "Comidas y Bebidas", GOSSIP_SENDER_MAIN, 4255, "¿Invocar un Vendedor de Comida y Bebida?", GuildHouseVendor, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TALK, "Componentes", GOSSIP_SENDER_MAIN, 29636, "¿Invocar un vendedor de Componentes?", GuildHouseVendor, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TALK, "Vendedor de Munición y Reparador", GOSSIP_SENDER_MAIN, 29493, "¿Invocar un Vendedor de Munición y Reparador?", GuildHouseVendor, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TALK, "Venenos", GOSSIP_SENDER_MAIN, 2622, "¿Invocar un Vendedor de venenos?", GuildHouseVendor, false);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "¡Regresar!", GOSSIP_SENDER_MAIN, 9);
             SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, m_creature->GetGUID());
             break;
         case 4: // Objects & Portals
+        {
+
             ClearGossipMenuFor(player);
-            AddGossipItemFor(player, GOSSIP_ICON_TALK, "Forge", GOSSIP_SENDER_MAIN, 1685, "Add a forge?", GuildHouseObject, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TALK, "Anvil", GOSSIP_SENDER_MAIN, 4087, "Add an Anvil?", GuildHouseObject, false);
-            AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "Guild Vault", GOSSIP_SENDER_MAIN, 187293, "Add Guild Vault?", GuildHouseObject, false);
-            AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "Barber Chair", GOSSIP_SENDER_MAIN, 191028, "Add a Barber Chair?", GuildHouseObject, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TALK, "Forja", GOSSIP_SENDER_MAIN, 1685, "¿Agregar una Forja?", GuildHouseObject, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TALK, "Yunque", GOSSIP_SENDER_MAIN, 4087, "¿Agregar un Yunque?", GuildHouseObject, false);
+            AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "Cámara de la hermandad", GOSSIP_SENDER_MAIN, 187293, "¿Agregar una Cámara de la hermandad?", GuildHouseObject, false);
+            AddGossipItemFor(player, GOSSIP_ICON_INTERACT_1, "Silla de Peluquería", GOSSIP_SENDER_MAIN, 191028, "¿Agregar una Silla de peluquería?", GuildHouseObject, false);
 
             if (player->GetTeamId() == TEAM_ALLIANCE)
             {
-                // ALLIANCE players get these options
-                AddGossipItemFor(player, GOSSIP_ICON_TAXI, "Portal: Ironforge", GOSSIP_SENDER_MAIN, 500003, "Add Ironforge Portal?", GuildHousePortal, false);
-                AddGossipItemFor(player, GOSSIP_ICON_TAXI, "Portal: Darnassus", GOSSIP_SENDER_MAIN, 500001, "Add Darnassus Portal?", GuildHousePortal, false);
-                AddGossipItemFor(player, GOSSIP_ICON_TAXI, "Portal: Exodar", GOSSIP_SENDER_MAIN, 500002, "Add Exodar Portal?", GuildHousePortal, false);
+                // ALLIANCE players get these options                
+
+                bool portalFound[4] = { false, false, false, false };
+
+                if (QueryResult t_query = CharacterDatabase.Query("SELECT `buy`, `guild` FROM `guild_house_buy` WHERE `buy` >= 500001 AND `buy` <= 500004 AND `guild` = {}", pGuildId))
+                {
+                    do {
+                        Field* t_fields = t_query->Fetch();
+                        uint32 buy = t_fields[0].Get<uint32>();
+
+                        if (buy >= 500001 && buy <= 500004) {
+                            for (int i = 0; i < 4; i++) {
+                                if (buy == portalsA[i].id) {
+                                    portalFound[i] = true;
+                                    break;
+                                }
+                            }
+                        }
+                    } while (t_query->NextRow());
+                }
+
+                for (int i = 0; i < 4; i++) {
+                    if (!portalFound[i]) {
+                        std::string message = "¿Agregar un Portal: " + portalsA[i].name + "?";
+                        AddGossipItemFor(player, GOSSIP_ICON_TAXI, "Portal: " + portalsA[i].name, GOSSIP_SENDER_MAIN, portalsA[i].id, message.c_str(), GuildHousePortal, false);
+                    }
+                }
             }
             else
             {
-                // HORDE players get these options
-                AddGossipItemFor(player, GOSSIP_ICON_TAXI, "Portal: Undercity", GOSSIP_SENDER_MAIN, 500007, "Add Undercity Portal?", GuildHousePortal, false);
-                AddGossipItemFor(player, GOSSIP_ICON_TAXI, "Portal: Thunderbluff", GOSSIP_SENDER_MAIN, 500006, "Add Thunderbuff Portal?", GuildHousePortal, false);
-                AddGossipItemFor(player, GOSSIP_ICON_TAXI, "Portal: Silvermoon", GOSSIP_SENDER_MAIN, 500005, "Add Silvermoon Portal?", GuildHousePortal, false);
+                bool portalFound[4] = { false, false, false, false };
+
+                if (QueryResult t_query = CharacterDatabase.Query("SELECT `buy`, `guild` FROM `guild_house_buy` WHERE `buy` >= 500005 AND `buy` <= 500008 AND `guild` = {}", pGuildId))
+                {
+                    do {
+                        Field* t_fields = t_query->Fetch();
+                        uint32 buy = t_fields[0].Get<uint32>();
+
+                        if (buy >= 500005 && buy <= 500008) {
+                            for (int i = 0; i < 3; i++) {
+                                if (buy == portalsO[i].id) {
+                                    portalFound[i] = true;
+                                    break;
+                                }
+                            }
+                        }
+                    } while (t_query->NextRow());
+                }
+
+                for (int i = 0; i < 4; i++) {
+                    if (!portalFound[i]) {
+                        std::string message = "¿Agregar un Portal: " + portalsO[i].name + "?";
+                        AddGossipItemFor(player, GOSSIP_ICON_TAXI, "Portal: " + portalsO[i].name, GOSSIP_SENDER_MAIN, portalsO[i].id, message.c_str(), GuildHousePortal, false);
+                    }
+                }
+
+            }
+            // These two portals work for either Team
+
+            bool portalFoundN[2] = { false, false };
+
+            if (QueryResult t_query = CharacterDatabase.Query("SELECT `buy`, `guild` FROM `guild_house_buy` WHERE `buy` >= 500009 AND `buy` <= 500010 AND `guild` = {}", pGuildId))
+            {
+                do {
+                    Field* t_fields = t_query->Fetch();
+                    uint32 buy = t_fields[0].Get<uint32>();
+
+                    if (buy >= 500009 && buy <= 500010) {
+                        for (int i = 0; i < 2; i++) {
+                            if (buy == portalsN[i].id) {
+                                portalFoundN[i] = true;
+                                break;
+                            }
+                        }
+                    }
+                } while (t_query->NextRow());
+            }
+            for (int i = 0; i < 2; i++) {
+                if (!portalFoundN[i]) {
+                    std::string message = "¿Agregar un Portal: " + portalsN[i].name + "?";
+                    AddGossipItemFor(player, GOSSIP_ICON_TAXI, "Portal: " + portalsN[i].name, GOSSIP_SENDER_MAIN, portalsN[i].id, message.c_str(), GuildHousePortal, false);
+                }
             }
 
-            // These two portals work for either Team
-            AddGossipItemFor(player, GOSSIP_ICON_TAXI, "Portal: Shattrath", GOSSIP_SENDER_MAIN, 500008, "Add Shattrath Portal?", GuildHousePortal, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TAXI, "Portal: Dalaran", GOSSIP_SENDER_MAIN, 500009, "Add Dalaran Portal?", GuildHousePortal, false);
-
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Go Back!", GOSSIP_SENDER_MAIN, 9);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "¡Regresar!", GOSSIP_SENDER_MAIN, 9);
             SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, m_creature->GetGUID());
             break;
+
+        }
         case 6: // Auctioneer
         {
             uint32 auctioneer = 0;
@@ -147,39 +417,41 @@ public:
             break;
         case 7: // Spawn Profession Trainers
             ClearGossipMenuFor(player);
-            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Alchemy Trainer", GOSSIP_SENDER_MAIN, 19052, "Spawn Alchemy Trainer?", GuildHouseProf, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Blacksmithing Trainer", GOSSIP_SENDER_MAIN, 2836, "Spawn Blacksmithing Trainer?", GuildHouseProf, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Engineering Trainer", GOSSIP_SENDER_MAIN, 8736, "Spawn Engineering Trainer?", GuildHouseProf, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Tailoring Trainer", GOSSIP_SENDER_MAIN, 2627, "Spawn Tailoring Trainer?", GuildHouseProf, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Leatherworking Trainer", GOSSIP_SENDER_MAIN, 19187, "Spawn Leatherworking Trainer?", GuildHouseProf, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Skinning Trainer", GOSSIP_SENDER_MAIN, 19180, "Spawn Skinning Trainer?", GuildHouseProf, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Mining Trainer", GOSSIP_SENDER_MAIN, 8128, "Spawn Mining Trainer?", GuildHouseProf, false);
-            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Herbalism Trainer", GOSSIP_SENDER_MAIN, 908, "Spawn Herbalism Trainer?", GuildHouseProf, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Alquimia", GOSSIP_SENDER_MAIN, 19052, "¿Invocar  un entrenador de Alquimia?", GuildHouseProf, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Herrería", GOSSIP_SENDER_MAIN, 2836, "¿Invocar  un entrenador de Herrería?", GuildHouseProf, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Ingeniería", GOSSIP_SENDER_MAIN, 8736, "¿Invocar un entrenador de Ingeniería?", GuildHouseProf, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Sastrería", GOSSIP_SENDER_MAIN, 2627, "¿Invocar un entrenador de Sastrería?", GuildHouseProf, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Peletería", GOSSIP_SENDER_MAIN, 19187, "¿Invocar un entrenador de Peletería?", GuildHouseProf, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Desuello", GOSSIP_SENDER_MAIN, 19180, "¿Invocar un entrenador de Desuello?", GuildHouseProf, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Minería", GOSSIP_SENDER_MAIN, 8128, "¿Invocar un entrenador de Minería?", GuildHouseProf, false);
+            AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "herbolaría", GOSSIP_SENDER_MAIN, 908, "¿Invocar un entrenador de herbolaría?", GuildHouseProf, false);
 
             if (player->GetTeamId() == TEAM_ALLIANCE)
             {
                 // ALLIANCE players get these options
-                AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Enchanting Trainer", GOSSIP_SENDER_MAIN, 18773, "Spawn Enchanting Trainer?", GuildHouseProf, false);
-                AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Jewelcrafing Trainer", GOSSIP_SENDER_MAIN, 18774, "Spawn Jewelcrafting Trainer?", GuildHouseProf, false);
-                AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Inscription Trainer", GOSSIP_SENDER_MAIN, 30721, "Spawn Inscription Trainer?", GuildHouseProf, false);
+                AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Encantamiento", GOSSIP_SENDER_MAIN, 18773, "¿Invocar un entrenador de Encantamiento?", GuildHouseProf, false);
+                AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Joyería", GOSSIP_SENDER_MAIN, 18774, "¿Invocar un entrenador de Joyería?", GuildHouseProf, false);
+                AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Inscripción", GOSSIP_SENDER_MAIN, 30721, "¿Invocar un entrenador de Inscripción?", GuildHouseProf, false);
             }
             else
             {
+                
+
                 // HORDE players get these options
-                AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Enchanting Trainer", GOSSIP_SENDER_MAIN, 18753, "Spawn Enchanting Trainer?", GuildHouseProf, false);
-                AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Jewelcrafing Trainer", GOSSIP_SENDER_MAIN, 18751, "Spawn Jewelcrafting Trainer?", GuildHouseProf, false);
-                AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Inscription Trainer", GOSSIP_SENDER_MAIN, 30722, "Spawn Inscription Trainer?", GuildHouseProf, false);
+                AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Encantamiento", GOSSIP_SENDER_MAIN, 18753, "¿Invocar un entrenador de Encantamiento?", GuildHouseProf, false);
+                AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Joyería", GOSSIP_SENDER_MAIN, 18751, "¿Invocar un entrenador de Joyería?", GuildHouseProf, false);
+                AddGossipItemFor(player, GOSSIP_ICON_TRAINER, "Inscripción", GOSSIP_SENDER_MAIN, 30722, "¿Invocar un entrenador de Inscripción?", GuildHouseProf, false);
             }
 
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Go Back!", GOSSIP_SENDER_MAIN, 9);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "¡Regresar!", GOSSIP_SENDER_MAIN, 9);
             SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, m_creature->GetGUID());
             break;
         case 8: // Secondary Profession Trainers
             ClearGossipMenuFor(player);
-            AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "First Aid Trainer", GOSSIP_SENDER_MAIN, 19184, "Spawn First Aid Trainer?", GuildHouseProf, false);
-            AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "Fishing Trainer", GOSSIP_SENDER_MAIN, 2834, "Spawn Fishing Trainer?", GuildHouseProf, false);
-            AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "Cooking Trainer", GOSSIP_SENDER_MAIN, 19185, "Spawn Cooking Trainer?", GuildHouseProf, false);
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "Go Back!", GOSSIP_SENDER_MAIN, 9);
+            AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "Primeros Auxilios", GOSSIP_SENDER_MAIN, 19184, "¿Invocar un entrenador de Primeros Auxilios?", GuildHouseProf, false);
+            AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "Pesca", GOSSIP_SENDER_MAIN, 2834, "¿Invocar un entrenador de Pesca?", GuildHouseProf, false);
+            AddGossipItemFor(player, GOSSIP_ICON_MONEY_BAG, "Cocina", GOSSIP_SENDER_MAIN, 19185, "¿Invocar un entrenador de Cocina?", GuildHouseProf, false);
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "¡Regresar!", GOSSIP_SENDER_MAIN, 9);
             SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, m_creature->GetGUID());
             break;
         case 9: // Go back!
@@ -238,9 +510,9 @@ public:
             cost = GuildHouseVendor;
             SpawnNPC(action, player);
             break;
-        //
-        // Objects
-        //
+            //
+            // Objects
+            //
         case 184137: // Mailbox
             cost = GuildHouseMailBox;
             SpawnObject(action, player);
@@ -256,20 +528,95 @@ public:
             cost = GuildHouseObject;
             SpawnObject(action, player);
             break;
+        case 500500: // Cementerio
+        {
+            ClearGossipMenuFor(player);
+            bool portalFound[2] = { false, false };
+
+            if (QueryResult t_query = CharacterDatabase.Query("SELECT `buy`, `guild` FROM `guild_house_buy` WHERE `buy` >= 500501 AND `buy` <= 500002 AND `guild` = {}", pGuildId))
+                {
+                do {
+                    Field* t_fields = t_query->Fetch();
+                    uint32 buy = t_fields[0].Get<uint32>();
+
+                    if (buy >= 500501 && buy <= 500502) {
+                        for (int i = 0; i < 2; i++) {
+                            if (buy == CementerioM[i].id) {
+                                portalFound[i] = true;
+                                break;
+                                }
+                            }
+                        }
+                    } while (t_query->NextRow());
+                }
+
+                for (int i = 0; i < 2; i++) {
+                    if (!portalFound[i]) {
+                        std::string message = "¿Agregar: " + CementerioM[i].name + "?";
+                        AddGossipItemFor(player, GOSSIP_ICON_TAXI, CementerioM[i].name, GOSSIP_SENDER_MAIN, CementerioM[i].id, message.c_str(), 1000000, false);
+                    }
+                }            
+
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, "¡Regresar!", GOSSIP_SENDER_MAIN, 9);
+            SendGossipMenuFor(player, DEFAULT_GOSSIP_MESSAGE, m_creature->GetGUID());
+            break;
+
+        }
+        case 500501: // Ángel de la Resurrección
+            cost = 1000000;
+            SpawnNPC(action, player);
+            break;
+        case 500502: // Restos Olvidados
+            cost = 1000000;
+            SpawnObject(500502, player);
+            SpawnObject(500503, player);
+            SpawnObject(500504, player);
+            break;
         case 500001: // Darnassus Portal
         case 500002: // Exodar Portal
         case 500003: // Ironforge Portal
+        case 500004: // Ventormenta Portal
         case 500005: // Silvermoon Portal
-        case 500006: // Thunder Bluff Portal
+        case 500006: // Thunder Bluff Portal   
         case 500007: // Undercity Portal
-        case 500008: // Shattrath Portal
-        case 500009: // Dalaran Portal
+        case 500008: // Orgrimmar Portal
+        case 500009: // Shattrath Portal
+        case 500010: // Dalaran Portal
             cost = GuildHousePortal;
-            SpawnObject(action, player);
+            buyPortal(action, player);
             break;
         }
-        return true;
+		
+		return true;
     }
+
+    void buyPortal(uint32 entry, Player* player) {
+        uint32 guildId = player->GetGuildId();
+        
+
+        // Verificar que el jugador tenga suficiente dinero
+        if (player->GetMoney() < cost) {
+            ChatHandler(player->GetSession()).PSendSysMessage("No tienes suficiente dinero para comprar este portal");
+            CloseGossipMenuFor(player);
+            return;
+        }
+
+        // Verificar que el portal no haya sido comprado previamente
+        if (QueryResult t_query = CharacterDatabase.Query("SELECT `buy` FROM `guild_house_buy` WHERE `guild` = {} AND `buy` = {}", guildId, entry)) {
+            ChatHandler(player->GetSession()).PSendSysMessage("Ya has comprado este portal");
+            CloseGossipMenuFor(player);
+            return;
+        }
+
+        // Comprar el portal
+        CharacterDatabase.Execute("INSERT INTO `guild_house_buy` VALUES ({},{})", guildId, entry);
+        player->ModifyMoney(-cost);
+        ChatHandler(player->GetSession()).PSendSysMessage("¡Portal adquirido para la Hermandad!");
+        CloseGossipMenuFor(player);
+    }
+            
+        
+    
 
     uint32 GetGuildPhase(Player *player)
     {
@@ -280,7 +627,7 @@ public:
     {
         if (player->FindNearestCreature(entry, VISIBILITY_RANGE, true))
         {
-            ChatHandler(player->GetSession()).PSendSysMessage("You already have this creature!");
+            ChatHandler(player->GetSession()).PSendSysMessage("¡Ya tienes esta criatura!");
             CloseGossipMenuFor(player);
             return;
         }
@@ -331,9 +678,10 @@ public:
 
     void SpawnObject(uint32 entry, Player *player)
     {
+        uint32 guildId = player->GetGuildId();
         if (player->FindNearestGameObject(entry, VISIBLE_RANGE))
         {
-            ChatHandler(player->GetSession()).PSendSysMessage("You already have this object!");
+            ChatHandler(player->GetSession()).PSendSysMessage("¡Ya tienes este objeto!");
             CloseGossipMenuFor(player);
             return;
         }
@@ -397,6 +745,7 @@ public:
         // TODO: is it really necessary to add both the real and DB table guid here ?
         sObjectMgr->AddGameobjectToGrid(guidLow, sObjectMgr->GetGameObjectData(guidLow));
         player->ModifyMoney(-cost);
+        CharacterDatabase.Execute("INSERT INTO `guild_house_buy` VALUES ({},{})", guildId, entry);
         CloseGossipMenuFor(player);
     }
 };
